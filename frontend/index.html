@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b1115">
+<title>FreshCheck: is this answer still true?</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%2310b981'/%3E%3Cpath d='M9 16.5l4.5 4.5L23 11' fill='none' stroke='white' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<script>try{var t=localStorage.getItem("fc-theme");if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="bg" aria-hidden="true"></div>
+
+<nav class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="#" aria-label="FreshCheck home">
+      <span class="logo"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+      <span>FreshCheck</span>
+    </a>
+    <div class="topbar-r">
+      <span id="modeBadge" class="pill" title="Engine status"></span>
+      <button id="theme" class="icon-btn" type="button" aria-label="Change theme"></button>
+    </div>
+  </div>
+</nav>
+
+<main>
+  <header class="hero">
+    <p class="eyebrow">Stale-answer detector</p>
+    <h1>Is that answer <em>still true?</em></h1>
+    <p class="lead">Paste an answer from any LLM. FreshCheck finds the claims that may have changed, re-checks them against the live web and rewrites them with sources.</p>
+    <p id="mode" class="muted small"></p>
+    <div id="stats" class="stats" hidden></div>
+  </header>
+
+  <section class="card input" aria-label="Check something">
+    <div class="tabs" role="tablist">
+      <button class="tab active" role="tab" data-tab="paste" aria-selected="true">Paste an answer</button>
+      <button class="tab" role="tab" data-tab="ask" aria-selected="false">Ask a question</button>
+      <button class="tab" role="tab" data-tab="bifrost" aria-selected="false">Bifrost Gateway</button>
+      <button class="tab" role="tab" data-tab="url" aria-selected="false">Audit a page</button>
+    </div>
+
+    <div class="pane" data-pane="paste">
+      <textarea id="answer" rows="6" placeholder="Paste an LLM answer here…" maxlength="6000"></textarea>
+      <div class="row between">
+        <div class="row">
+          <button id="go" class="primary">Check freshness <kbd>Ctrl ↵</kbd></button>
+          <button id="sample" class="ghost">Use an example</button>
+          <button id="clear" class="ghost subtle">Clear</button>
+        </div>
+        <span id="count" class="muted small">0 / 6000</span>
+      </div>
+    </div>
+
+    <div class="pane" data-pane="ask" hidden>
+      <div class="row nowrap"><input id="q" type="text" placeholder="e.g. what is the latest Python version and who runs Google?"><button id="ask" class="primary">Ask &amp; fact-check</button></div>
+      <p class="muted small hint">Gemini answers without web access, like a normal chatbot. Then FreshCheck audits and corrects that answer.</p>
+    </div>
+
+    <div class="pane" data-pane="bifrost" hidden>
+      <div class="row nowrap" style="gap:8px; margin-bottom:8px;">
+        <input id="bifrostModel" type="text" value="gemini-2.5-flash" placeholder="Model (e.g. gemini-2.5-flash)" style="max-width:260px;">
+        <input id="bifrostPrompt" type="text" placeholder="Ask anything to test through Bifrost Gateway..." style="flex:1;">
+        <button id="goBifrost" class="primary">Send to Gateway</button>
+      </div>
+      <div class="row" style="gap:16px; align-items:center;">
+        <label style="font-size:13px; color:var(--text-muted); display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
+          <input type="checkbox" id="bifrostAutofix" checked> Auto-apply FreshCheck fix
+        </label>
+        <span id="bifrostEndpointHint" class="muted small hint">Forwarding via <code>/v1/chat/completions</code></span>
+      </div>
+    </div>
+
+    <div class="pane" data-pane="url" hidden>
+      <div class="row nowrap"><input id="url" type="url" placeholder="https://example.com/blog-post"><button id="goUrl" class="primary">Audit page</button></div>
+      <p class="muted small hint">The page is read and its time-sensitive claims are checked against live sources.</p>
+    </div>
+
+    <div id="statusBar" class="statusbar" hidden><span class="spinner"></span><span id="status" role="status"></span></div>
+    <p id="statusErr" class="err" role="alert" hidden></p>
+  </section>
+
+  <section id="result" hidden>
+    <div class="card summary">
+      <div class="gauge" id="gauge">
+        <svg viewBox="0 0 120 120" width="132" height="132" aria-hidden="true">
+          <circle class="g-track" cx="60" cy="60" r="52"/>
+          <circle class="g-val" id="gVal" cx="60" cy="60" r="52" transform="rotate(-90 60 60)"/>
+        </svg>
+        <div class="g-text"><b id="avg" class="avg"></b><small>/ 100</small></div>
+      </div>
+      <div class="sum-body">
+        <h2 id="verdict" class="verdict"></h2>
+        <p id="avgLabel" class="muted"></p>
+        <div id="counts" class="counts"></div>
+        <div class="row actions">
+          <button id="watch" class="ghost">Watch this answer</button>
+          <button id="dl" class="ghost">Download report</button>
+          <button id="share" class="ghost">Copy share link</button>
+          <span id="watchMsg" class="muted small"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid2" id="compare">
+      <div class="card">
+        <div class="card-h"><h3>Your answer, marked up</h3>
+          <div class="legend"><i class="d fresh"></i>Fresh<i class="d uncertain"></i>Unsure<i class="d stale"></i>Stale</div></div>
+        <p id="marked" class="marked"></p>
+      </div>
+      <div class="card fixedcard" id="fixBox" hidden>
+        <div class="card-h"><h3>Corrected answer</h3><button id="copy" class="ghost sm">Copy</button></div>
+        <p id="fixed" class="marked fixed"></p>
+      </div>
+    </div>
+
+    <div class="card-h pad"><h2>Claim by claim</h2><div id="filters" class="filters" role="group" aria-label="Filter claims"></div></div>
+    <div id="claims"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-h"><h2>Watchlist</h2><button id="runWatch" class="ghost sm">Re-check now</button></div>
+    <p class="muted small">Watched answers are re-checked on a schedule based on how fast their claims change. Claims that change status appear here.</p>
+    <span id="runMsg" class="muted small"></span>
+    <ul id="events" class="list"><li class="empty">No changes detected yet.</li></ul>
+  </section>
+
+  <section class="card">
+    <div class="card-h"><h2>Recent checks</h2></div>
+    <ul id="history" class="list"><li class="empty">Nothing yet. Run your first check above.</li></ul>
+  </section>
+
+  <footer class="foot muted small">FreshCheck · powered by Gemini + Tavily live search</footer>
+</main>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="app.js"></script>
+</body>
+</html>

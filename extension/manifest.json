@@ -1,0 +1,4 @@
+{"manifest_version":3,"name":"FreshCheck","version":"1.1","description":"Check whether an AI answer or any selected text is still true.",
+ "permissions":["contextMenus","storage"],"host_permissions":["http://localhost:5000/*","http://127.0.0.1:5000/*"],
+ "optional_host_permissions":["https://*/*","http://*/*"],
+ "background":{"service_worker":"background.js"},"action":{"default_popup":"popup.html","default_title":"FreshCheck"}}

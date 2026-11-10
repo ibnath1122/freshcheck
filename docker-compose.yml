@@ -1,0 +1,23 @@
+# docker compose up --build
+#   FreshCheck  http://localhost:5000
+#   Bifrost     http://localhost:8080   (open it once and add your provider key in the web UI)
+services:
+  db:
+    image: mysql:8
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+    volumes: ["./mysql-data:/var/lib/mysql"]
+  bifrost:
+    image: maximhq/bifrost
+    ports: ["8080:8080"]
+    volumes: ["./bifrost-data:/app/data"]
+  freshcheck:
+    build: .
+    ports: ["5000:5000"]
+    env_file: [./backend/.env]
+    environment:
+      DB_HOST: db
+      DB_USER: root
+      DB_PASS: ""
+      LLM_BASE_URL: http://bifrost:8080/v1
+    depends_on: [db, bifrost]
